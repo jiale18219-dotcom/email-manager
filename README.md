@@ -10,6 +10,14 @@ Personal email management tool for importing account records in bulk, filtering 
 
 - Compact record-first management UI
 - 紧凑型记录优先界面
+- ID column display
+- ID 列显示
+- Remark field with edit support
+- 备注字段支持编辑
+- Pin/Freeze records (click row to pin)
+- 冻结功能（点击行冻结/解冻）
+- Single record edit and delete
+- 单条记录编辑和删除
 - Bulk import with reusable templates
 - 支持导入模板预设与自定义模板
 - Separate email/password columns with one-click copy
@@ -42,6 +50,9 @@ Start in development mode:
 ```bash
 npm run dev
 ```
+
+- Frontend: http://localhost:3002
+- Backend API: http://localhost:3001
 
 Build the frontend:
 
