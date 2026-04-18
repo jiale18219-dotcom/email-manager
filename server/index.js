@@ -11,6 +11,8 @@ import {
   listImportTemplates,
   listAccounts,
   updateAccountStatus,
+  updateAccount,
+  deleteAccount,
 } from './accountService.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -93,6 +95,31 @@ app.patch('/api/accounts/:id/status', async (request, response) => {
       request.body.status,
     )
     response.json(account)
+  } catch (error) {
+    response.status(400).json({
+      error: error.message,
+    })
+  }
+})
+
+app.patch('/api/accounts/:id', async (request, response) => {
+  try {
+    const account = await updateAccount(
+      Number(request.params.id),
+      request.body,
+    )
+    response.json(account)
+  } catch (error) {
+    response.status(400).json({
+      error: error.message,
+    })
+  }
+})
+
+app.delete('/api/accounts/:id', async (request, response) => {
+  try {
+    const result = await deleteAccount(Number(request.params.id))
+    response.json(result)
   } catch (error) {
     response.status(400).json({
       error: error.message,

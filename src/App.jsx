@@ -64,6 +64,33 @@ function CloseIcon() {
   )
 }
 
+function EditIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M2.5 16.25a.75.75 0 0 1 .75-.75h13.5a.75.75 0 0 1 0 1.5H3.25a.75.75 0 0 1-.75-.75z" />
+      <path d="M14.5 3.44l2.06 2.06-9.5 9.5-2.06-2.06 9.5-9.5zm1.06-1.06a1.5 1.5 0 0 0-2.12 0l-9.5 9.5a1.5 1.5 0 0 0 0 2.12l2.06 2.06a1.5 1.5 0 0 0 2.12 0l9.5-9.5a1.5 1.5 0 0 0 0-2.12l-2.06-2.06z" />
+    </svg>
+  )
+}
+
+function DeleteIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M8.5 3a1.5 1.5 0 0 0-1.5 1.5v.5h6v-.5A1.5 1.5 0 0 0 11.5 3h-3zM6 4.5v.5H3.75a.75.75 0 0 0 0 1.5h.321l.938 10.355A1.5 1.5 0 0 0 6.5 17.5h7a1.5 1.5 0 0 0 1.491-1.145L15.929 6.5h.321a.75.75 0 0 0 0-1.5H14v-.5A3 3 0 0 0 11.5 2h-3A3 3 0 0 0 6 4.5zm5.25 3.75a.75.75 0 0 1 .75.75v5a.75.75 0 0 1-1.5 0v-5a.75.75 0 0 1 .75-.75zm-2.5 0a.75.75 0 0 1 .75.75v5a.75.75 0 0 1-1.5 0v-5a.75.75 0 0 1 .75-.75z" />
+    </svg>
+  )
+}
+
+function PinIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M10 2a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 10 2z" />
+      <path d="M10 6a4 4 0 0 0-4 4v4.5a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5V10a4 4 0 0 0-4-4z" />
+      <path d="M6 16.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5z" />
+    </svg>
+  )
+}
+
 function formatTime(value) {
   return new Intl.DateTimeFormat('zh-CN', {
     month: '2-digit',
@@ -140,6 +167,9 @@ function App() {
     passwordPosition: '2',
   })
   const [flash, setFlash] = useState('')
+  const [editingAccount, setEditingAccount] = useState(null)
+  const [editForm, setEditForm] = useState({ remark: '' })
+  const [deletingId, setDeletingId] = useState(null)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -306,12 +336,81 @@ function App() {
     }
   }
 
+  async function handleTogglePin(account) {
+    try {
+      await parseJson(
+        await fetch(`/api/accounts/${account.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ pinned: !account.pinned }),
+        }),
+      )
+
+      setFlash(account.pinned ? 'Unpinned.' : 'Pinned.')
+      await refresh()
+    } catch (error) {
+      setFlash(error.message)
+    }
+  }
+
   async function handleCopy(value, label) {
     try {
       await navigator.clipboard.writeText(value)
       setFlash(`${label} copied.`)
     } catch (error) {
       setFlash(`Copy failed: ${error.message}`)
+    }
+  }
+
+  async function handleEdit(account) {
+    setEditingAccount(account)
+    setEditForm({ remark: account.remark || '' })
+  }
+
+  async function handleSaveEdit(event) {
+    event.preventDefault()
+    
+    try {
+      await parseJson(
+        await fetch(`/api/accounts/${editingAccount.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(editForm),
+        }),
+      )
+
+      setFlash('Updated.')
+      setEditingAccount(null)
+      await refresh()
+    } catch (error) {
+      setFlash(error.message)
+    }
+  }
+
+  async function handleDelete(id) {
+    if (!window.confirm('确定要删除这条记录吗？')) {
+      return
+    }
+
+    setDeletingId(id)
+
+    try {
+      await parseJson(
+        await fetch(`/api/accounts/${id}`, {
+          method: 'DELETE',
+        }),
+      )
+
+      setFlash('Deleted.')
+      await refresh()
+    } catch (error) {
+      setFlash(error.message)
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -414,15 +513,17 @@ function App() {
         <section className="table-card">
           <div className="table-head">
             <span>{pagination.total} matched</span>
-            <span>{flash || 'Compact table mode.'}</span>
+            <span>{flash || 'Click row to pin/unpin.'}</span>
           </div>
 
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
+                  <th>ID</th>
                   <th>Email</th>
                   <th>Password</th>
+                  <th>Remark</th>
                   <th>Vendor</th>
                   <th>Status</th>
                   <th>Updated</th>
@@ -432,19 +533,25 @@ function App() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="6" className="empty-row">
+                    <td colSpan="8" className="empty-row">
                       Loading records...
                     </td>
                   </tr>
                 ) : accounts.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="empty-row">
+                    <td colSpan="8" className="empty-row">
                       No records found.
                     </td>
                   </tr>
                 ) : (
                   accounts.map((account) => (
-                    <tr key={account.id} className={account.status === 'inactive' ? 'is-muted' : ''}>
+                    <tr 
+                      key={account.id} 
+                      className={`${account.status === 'inactive' ? 'is-muted' : ''} ${account.pinned ? 'is-pinned' : ''}`}
+                      onClick={() => handleTogglePin(account)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td className="id-cell">{account.id}</td>
                       <td>
                         <div className="compact-cell">
                           <span className="value-text">{account.email}</span>
@@ -452,7 +559,7 @@ function App() {
                             className="icon-button"
                             type="button"
                             title="Copy email"
-                            onClick={() => handleCopy(account.email, 'Email')}
+                            onClick={(e) => { e.stopPropagation(); handleCopy(account.email, 'Email'); }}
                           >
                             <CopyIcon />
                           </button>
@@ -465,12 +572,13 @@ function App() {
                             className="icon-button"
                             type="button"
                             title="Copy password"
-                            onClick={() => handleCopy(account.emailPassword, 'Password')}
+                            onClick={(e) => { e.stopPropagation(); handleCopy(account.emailPassword, 'Password'); }}
                           >
                             <CopyIcon />
                           </button>
                         </div>
                       </td>
+                      <td className="remark-cell">{account.remark || '-'}</td>
                       <td>
                         <span className={`vendor-badge vendor-${account.vendor}`}>
                           {account.vendor}
@@ -487,15 +595,34 @@ function App() {
                       </td>
                       <td className="time-cell">{formatTime(account.updatedAt)}</td>
                       <td>
-                        <button
-                          className="icon-button"
-                          type="button"
-                          title={account.status === 'active' ? 'Mark inactive' : 'Restore'}
-                          disabled={togglingId === account.id}
-                          onClick={() => handleToggleStatus(account)}
-                        >
-                          {account.status === 'active' ? <DisableIcon /> : <RestoreIcon />}
-                        </button>
+                        <div className="action-buttons">
+                          <button
+                            className="icon-button"
+                            type="button"
+                            title="Edit"
+                            onClick={(e) => { e.stopPropagation(); handleEdit(account); }}
+                          >
+                            <EditIcon />
+                          </button>
+                          <button
+                            className="icon-button"
+                            type="button"
+                            title={account.status === 'active' ? 'Mark inactive' : 'Restore'}
+                            disabled={togglingId === account.id}
+                            onClick={(e) => { e.stopPropagation(); handleToggleStatus(account); }}
+                          >
+                            {account.status === 'active' ? <DisableIcon /> : <RestoreIcon />}
+                          </button>
+                          <button
+                            className="icon-button danger"
+                            type="button"
+                            title="Delete"
+                            disabled={deletingId === account.id}
+                            onClick={(e) => { e.stopPropagation(); handleDelete(account.id); }}
+                          >
+                            <DeleteIcon />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -679,6 +806,52 @@ function App() {
                 </button>
                 <button className="primary-button" type="submit" disabled={importing}>
                   {importing ? 'Importing...' : 'Import'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {editingAccount ? (
+        <div className="modal-backdrop" onClick={() => setEditingAccount(null)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <h2>Edit Record #{editingAccount.id}</h2>
+                <p>{editingAccount.email}</p>
+              </div>
+              <button
+                className="icon-button"
+                type="button"
+                title="Close"
+                onClick={() => setEditingAccount(null)}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit}>
+              <label className="modal-field">
+                <span>Remark</span>
+                <input
+                  value={editForm.remark}
+                  onChange={(event) =>
+                    setEditForm((current) => ({
+                      ...current,
+                      remark: event.target.value,
+                    }))
+                  }
+                  placeholder="Add a note..."
+                />
+              </label>
+
+              <div className="modal-actions">
+                <button className="secondary-button" type="button" onClick={() => setEditingAccount(null)}>
+                  Cancel
+                </button>
+                <button className="primary-button" type="submit">
+                  Save
                 </button>
               </div>
             </form>

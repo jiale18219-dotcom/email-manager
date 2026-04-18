@@ -158,6 +158,43 @@ tbody tr:last-child td {
   background: rgba(248, 250, 252, 0.78);
 }
 
+.is-pinned {
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.is-pinned:hover {
+  background: rgba(251, 191, 36, 0.18);
+}
+
+.id-cell {
+  font-weight: 600;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.remark-cell {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.icon-button.danger {
+  color: #dc2626;
+}
+
+.icon-button.danger:hover {
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
 .compact-cell {
   display: flex;
   align-items: center;

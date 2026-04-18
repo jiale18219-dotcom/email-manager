@@ -161,12 +161,15 @@ export async function listAccounts(options = {}) {
           domain,
           vendor,
           status,
+          pinned,
+          remark,
           created_at,
           updated_at,
           invalidated_at
         FROM account_credentials
         ${clause}
         ORDER BY
+          pinned DESC,
           CASE WHEN status = 'active' THEN 0 ELSE 1 END,
           updated_at DESC,
           created_at DESC
@@ -184,6 +187,8 @@ export async function listAccounts(options = {}) {
       domain: row.domain,
       vendor: row.vendor,
       status: row.status,
+      pinned: Boolean(row.pinned),
+      remark: row.remark || '',
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       invalidatedAt: row.invalidated_at,
@@ -325,4 +330,70 @@ export async function updateAccountStatus(id, status) {
     status: result.status,
     updatedAt: result.updated_at,
   }
+}
+
+export async function updateAccount(id, data) {
+  const timestamp = nowIso()
+  const fields = []
+  const values = []
+
+  if (data.remark !== undefined) {
+    fields.push('remark = ?')
+    values.push(data.remark)
+  }
+
+  if (data.pinned !== undefined) {
+    fields.push('pinned = ?')
+    values.push(data.pinned ? 1 : 0)
+  }
+
+  if (fields.length === 0) {
+    throw new Error('没有要更新的字段。')
+  }
+
+  fields.push('updated_at = ?')
+  values.push(timestamp)
+  values.push(id)
+
+  const result = db
+    .prepare(
+      `
+        UPDATE account_credentials
+        SET ${fields.join(', ')}
+        WHERE id = ?
+        RETURNING id, email, status, pinned, remark, updated_at
+      `,
+    )
+    .get(...values)
+
+  if (!result) {
+    throw new Error('目标账号不存在。')
+  }
+
+  return {
+    id: result.id,
+    email: result.email,
+    status: result.status,
+    pinned: Boolean(result.pinned),
+    remark: result.remark || '',
+    updatedAt: result.updated_at,
+  }
+}
+
+export async function deleteAccount(id) {
+  const result = db
+    .prepare(
+      `
+        DELETE FROM account_credentials
+        WHERE id = ?
+        RETURNING id
+      `,
+    )
+    .get(id)
+
+  if (!result) {
+    throw new Error('目标账号不存在。')
+  }
+
+  return { id: result.id }
 }
