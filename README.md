@@ -12,12 +12,12 @@ Personal email management tool for importing account records in bulk, filtering 
 - 紧凑型记录优先界面
 - ID column display
 - ID 列显示
+- Single record add, edit and delete
+- 单条记录新增、编辑和删除
+- Pin/Freeze records (click row to pin, single record only)
+- 冻结功能（点击行冻结/解冻，单条记录）
 - Remark field with edit support
 - 备注字段支持编辑
-- Pin/Freeze records (click row to pin)
-- 冻结功能（点击行冻结/解冻）
-- Single record edit and delete
-- 单条记录编辑和删除
 - Bulk import with reusable templates
 - 支持导入模板预设与自定义模板
 - Separate email/password columns with one-click copy

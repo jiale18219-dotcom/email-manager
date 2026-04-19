@@ -20,6 +20,11 @@
   margin-bottom: 12px;
 }
 
+.topbar-buttons {
+  display: flex;
+  gap: 8px;
+}
+
 .topbar-copy h1 {
   margin: 0;
   font-size: 1.4rem;
@@ -170,6 +175,46 @@ tbody tr:last-child td {
   font-weight: 600;
   color: #64748b;
   font-size: 0.85rem;
+}
+
+.pin-col {
+  width: 40px;
+  text-align: center;
+}
+
+.pin-cell {
+  text-align: center;
+  padding: 8px 6px !important;
+}
+
+.pin-button {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  color: #cbd5e1;
+  transition: all 120ms ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pin-button:hover {
+  background: rgba(251, 191, 36, 0.15);
+  color: #f59e0b;
+}
+
+.pin-button.is-pinned {
+  color: #f59e0b;
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.pin-button svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
 }
 
 .remark-cell {

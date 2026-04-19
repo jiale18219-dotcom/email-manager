@@ -170,6 +170,9 @@ function App() {
   const [editingAccount, setEditingAccount] = useState(null)
   const [editForm, setEditForm] = useState({ remark: '' })
   const [deletingId, setDeletingId] = useState(null)
+  const [isAddOpen, setIsAddOpen] = useState(false)
+  const [addForm, setAddForm] = useState({ email: '', password: '' })
+  const [adding, setAdding] = useState(false)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -337,20 +340,54 @@ function App() {
   }
 
   async function handleTogglePin(account) {
-    try {
-      await parseJson(
-        await fetch(`/api/accounts/${account.id}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ pinned: !account.pinned }),
-        }),
-      )
+    const wasPinned = account.pinned
 
-      setFlash(account.pinned ? 'Unpinned.' : 'Pinned.')
-      await refresh()
+    // 单行冻结：解冻所有，只冻结当前行（如果之前未冻结）
+    setAccounts((current) => {
+      const updated = current.map((a) => ({
+        ...a,
+        pinned: !wasPinned && a.id === account.id,
+      }))
+      // 冻结的行在最前，其他按 ID 排序
+      return [...updated].sort((a, b) => {
+        if (a.pinned !== b.pinned) return b.pinned ? 1 : -1
+        return a.id - b.id
+      })
+    })
+
+    try {
+      if (wasPinned) {
+        await parseJson(
+          await fetch(`/api/accounts/${account.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pinned: false }),
+          }),
+        )
+        setFlash('Unpinned.')
+      } else {
+        // 先解冻其他已冻结的行
+        const currentlyPinned = accounts.find((a) => a.pinned && a.id !== account.id)
+        if (currentlyPinned) {
+          await parseJson(
+            await fetch(`/api/accounts/${currentlyPinned.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pinned: false }),
+            }),
+          )
+        }
+        await parseJson(
+          await fetch(`/api/accounts/${account.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pinned: true }),
+          }),
+        )
+        setFlash('Pinned to top.')
+      }
     } catch (error) {
+      refresh()
       setFlash(error.message)
     }
   }
@@ -411,6 +448,40 @@ function App() {
       setFlash(error.message)
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  async function handleAdd(event) {
+    event.preventDefault()
+
+    if (!addForm.email.trim() || !addForm.password.trim()) {
+      setFlash('邮箱和密码不能为空。')
+      return
+    }
+
+    setAdding(true)
+
+    try {
+      await parseJson(
+        await fetch('/api/accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: addForm.email,
+            password: addForm.password,
+          }),
+        }),
+      )
+
+      setFlash('Added.')
+      setAddForm({ email: '', password: '' })
+      setIsAddOpen(false)
+      setPage(1)
+      await refresh(1)
+    } catch (error) {
+      setFlash(error.message)
+    } finally {
+      setAdding(false)
     }
   }
 
@@ -475,9 +546,14 @@ function App() {
             </div>
           </div>
 
-          <button className="primary-button" type="button" onClick={() => setIsImportOpen(true)}>
-            Import
-          </button>
+          <div className="topbar-buttons">
+            <button className="secondary-button" type="button" onClick={() => setIsAddOpen(true)}>
+              Add
+            </button>
+            <button className="primary-button" type="button" onClick={() => setIsImportOpen(true)}>
+              Import
+            </button>
+          </div>
         </header>
 
         <section className="toolbar">
@@ -545,8 +621,8 @@ function App() {
                   </tr>
                 ) : (
                   accounts.map((account) => (
-                    <tr 
-                      key={account.id} 
+                    <tr
+                      key={account.id}
                       className={`${account.status === 'inactive' ? 'is-muted' : ''} ${account.pinned ? 'is-pinned' : ''}`}
                       onClick={() => handleTogglePin(account)}
                       style={{ cursor: 'pointer' }}
@@ -852,6 +928,64 @@ function App() {
                 </button>
                 <button className="primary-button" type="submit">
                   Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isAddOpen ? (
+        <div className="modal-backdrop" onClick={() => setIsAddOpen(false)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <h2>Add Record</h2>
+                <p>Create a new email record.</p>
+              </div>
+              <button
+                className="icon-button"
+                type="button"
+                title="Close"
+                onClick={() => setIsAddOpen(false)}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <form onSubmit={handleAdd}>
+              <label className="modal-field">
+                <span>Email</span>
+                <input
+                  type="email"
+                  value={addForm.email}
+                  onChange={(event) =>
+                    setAddForm((current) => ({ ...current, email: event.target.value }))
+                  }
+                  placeholder="example@domain.com"
+                  required
+                />
+              </label>
+
+              <label className="modal-field" style={{ marginTop: '12px' }}>
+                <span>Password</span>
+                <input
+                  type="text"
+                  value={addForm.password}
+                  onChange={(event) =>
+                    setAddForm((current) => ({ ...current, password: event.target.value }))
+                  }
+                  placeholder="Password"
+                  required
+                />
+              </label>
+
+              <div className="modal-actions">
+                <button className="secondary-button" type="button" onClick={() => setIsAddOpen(false)}>
+                  Cancel
+                </button>
+                <button className="primary-button" type="submit" disabled={adding}>
+                  {adding ? 'Adding...' : 'Add'}
                 </button>
               </div>
             </form>

@@ -7,6 +7,7 @@ import express from 'express'
 import { getDatabaseStatus, initializeDatabase } from './db.js'
 import {
   createImportTemplate,
+  createAccount,
   importAccounts,
   listImportTemplates,
   listAccounts,
@@ -81,6 +82,17 @@ app.post('/api/accounts/import', async (request, response) => {
       request.body.templateId,
     )
     response.status(201).json(result)
+  } catch (error) {
+    response.status(400).json({
+      error: error.message,
+    })
+  }
+})
+
+app.post('/api/accounts', async (request, response) => {
+  try {
+    const account = await createAccount(request.body.email, request.body.password)
+    response.status(201).json(account)
   } catch (error) {
     response.status(400).json({
       error: error.message,

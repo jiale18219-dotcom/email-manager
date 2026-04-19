@@ -1,5 +1,5 @@
 import { db } from './db.js'
-import { parseImportText } from './accountUtils.js'
+import { parseImportText, getDomain, detectVendor } from './accountUtils.js'
 
 function nowIso() {
   return new Date().toISOString()
@@ -376,6 +376,66 @@ export async function updateAccount(id, data) {
     status: result.status,
     pinned: Boolean(result.pinned),
     remark: result.remark || '',
+    updatedAt: result.updated_at,
+  }
+}
+
+export async function createAccount(email, password) {
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  const emailPassword = String(password || '').trim()
+
+  if (!normalizedEmail || !normalizedEmail.includes('@')) {
+    throw new Error('邮箱格式不正确。')
+  }
+
+  if (!emailPassword) {
+    throw new Error('密码不能为空。')
+  }
+
+  const existing = db
+    .prepare('SELECT id FROM account_credentials WHERE email = ?')
+    .get(normalizedEmail)
+
+  if (existing) {
+    throw new Error('该邮箱已存在。')
+  }
+
+  const timestamp = nowIso()
+  const result = db
+    .prepare(`
+      INSERT INTO account_credentials (
+        email,
+        email_password,
+        domain,
+        vendor,
+        status,
+        raw_input,
+        created_at,
+        updated_at,
+        invalidated_at
+      ) VALUES (?, ?, ?, ?, 'active', ?, ?, ?, NULL)
+      RETURNING id, email, email_password, domain, vendor, status, pinned, remark, created_at, updated_at
+    `)
+    .get(
+      normalizedEmail,
+      emailPassword,
+      getDomain(normalizedEmail),
+      detectVendor(normalizedEmail),
+      `${normalizedEmail}----${emailPassword}`,
+      timestamp,
+      timestamp,
+    )
+
+  return {
+    id: result.id,
+    email: result.email,
+    emailPassword: result.email_password,
+    domain: result.domain,
+    vendor: result.vendor,
+    status: result.status,
+    pinned: Boolean(result.pinned),
+    remark: result.remark || '',
+    createdAt: result.created_at,
     updatedAt: result.updated_at,
   }
 }
