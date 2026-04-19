@@ -16,6 +16,7 @@ dist-ssr
 data/*.db
 data/*.db-shm
 data/*.db-wal
+CLAUDE.md
 
 # Editor directories and files
 .vscode/*
